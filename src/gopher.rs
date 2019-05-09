@@ -7,7 +7,7 @@ use gtk::{
 };
 use url::Url;
 
-use crate::browser::BrowserExt;
+use crate::tabs::BrowserExt;
 
 #[derive(Debug)]
 pub struct Request(pub SocketAddr, pub Option<(ItemType, String)>);

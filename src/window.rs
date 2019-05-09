@@ -1,8 +1,10 @@
+use relm::{Widget, Relm};
 use gtk::prelude::*;
 use gtk::{Application, ApplicationWindow, Notebook, WindowPosition};
 use url::Url;
 
-use crate::browser::BrowserExt;
+use crate::tabs::Tabs;
+use crate::tabs::BrowserExt;
 
 pub fn build_window(app: &Application) {
     let window = ApplicationWindow::new(app);
@@ -16,4 +18,34 @@ pub fn build_window(app: &Application) {
     window.add(&browser);
 
     window.show_all();
+}
+
+pub struct Model {
+    relm: Relm<Window>,
+}
+
+#[derive(Msg)]
+pub enum Msg {
+    Quit,
+}
+
+#[widget]
+impl Widget for Window {
+    fn model(relm: &Relm<Self>, _: ()) -> Model {
+        Model { relm: relm.clone() }
+    }
+
+    fn update(&mut self, event: Msg) {
+        match event {
+            Msg::Quit => gtk::main_quit(),
+        }
+    }
+
+    view! {
+        gtk::Window {
+            Tabs,
+
+            delete_event(_, _) => (Msg::Quit, Inhibit(false)),
+        }
+    }
 }

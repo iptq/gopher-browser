@@ -12,5 +12,8 @@ gio = "0.6"
 glib = "0.7"
 gtk = "0.6"
 log = "0.4"
-# tokio = { version = "0.1", default-features = false, features = ["codec", "tcp"] }
+relm = "0.16"
+relm-attributes = "0.16"
+relm-derive = "0.16"
+tokio = { version = "0.1", default-features = false, features = ["codec", "tcp"] }
 url = "1.7"

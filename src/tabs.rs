@@ -1,6 +1,7 @@
+use relm::Widget;
 use gtk::prelude::*;
 use gtk::{
-    Box as GtkBox, Label, Notebook, Orientation, PackType, ScrolledWindow, SearchEntry, Widget,
+    Box as GtkBox, Label, Notebook, Orientation, PackType, ScrolledWindow, SearchEntry, Widget as GtkWidget,
     NONE_ADJUSTMENT,
 };
 use url::Url;
@@ -8,13 +9,13 @@ use url::Url;
 use crate::gopher::{self, Response};
 
 pub trait BrowserExt {
-    fn new_tab_with_content(&self, content: impl IsA<Widget>);
+    fn new_tab_with_content(&self, content: impl IsA<GtkWidget>);
     fn new_empty_tab(&self);
     fn new_tab_with_url(&self, url: Url);
 }
 
 impl BrowserExt for Notebook {
-    fn new_tab_with_content(&self, content: impl IsA<Widget>) {
+    fn new_tab_with_content(&self, content: impl IsA<GtkWidget>) {
         let child = GtkBox::new(Orientation::Vertical, 0);
 
         let search_bar = SearchEntry::new();
@@ -46,5 +47,32 @@ impl BrowserExt for Notebook {
                 info!("done!");
                 self.new_tab_with_content(widget);
             });
+    }
+}
+
+pub struct Model {
+
+}
+
+#[derive(Msg)]
+pub enum Msg {
+    OpenUrl(Url),
+}
+
+#[widget]
+impl Widget for Tabs {
+    fn model() -> Model {
+        Model {}
+    }
+
+    fn update(&mut self, event: Msg) {
+        match event {
+            Msg::OpenUrl(url) => {
+            },
+        }
+    }
+
+    view! {
+        gtk::Notebook {}
     }
 }

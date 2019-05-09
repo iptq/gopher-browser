@@ -1,7 +1,7 @@
 use bytes::BytesMut;
 use tokio::codec::{Decoder, Encoder, LinesCodec};
 
-use crate::gopher::errors::Error;
+use super::errors::Error;
 
 pub struct Request {
     pub selector: String,
