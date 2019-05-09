@@ -4,12 +4,14 @@ use tokio::codec::{Decoder, Encoder, LinesCodec};
 use super::errors::Error;
 use super::types::ItemType;
 
+#[derive(Debug)]
 pub enum Response {
     Menu(Vec<MenuEntry>),
     TextFile,
     BinaryFile,
 }
 
+#[derive(Debug)]
 pub enum MenuEntry {
     Information(String),
     Link(ItemType, String, String),
@@ -37,6 +39,7 @@ impl Decoder for ResponseCodec {
     type Error = Error;
 
     fn decode(&mut self, bytes: &mut BytesMut) -> Result<Option<Self::Item>, Self::Error> {
+        info!("Decoding: {:?}", bytes);
         Ok(None)
     }
 }

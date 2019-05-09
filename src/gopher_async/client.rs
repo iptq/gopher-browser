@@ -15,23 +15,16 @@ use super::types::ItemType;
 pub struct Client;
 
 impl Client {
-    pub fn request_async(
-        &self,
-        request: Request,
-    ) -> impl Future<Item = Option<Response>, Error = Error> {
+    pub fn request_async(request: Request) -> impl Future<Item = Response, Error = Error> {
         use std::io::{Read, Write};
         use tokio::net::TcpStream;
 
-        let item_type = request
-            .resource
-            .as_ref()
-            .map(|t| t.0)
-            .unwrap_or_else(|| ItemType::Dir);
-
+        let item_type = request.item_type;
         let mut stream = TcpStream::connect(&request.addr).map_err(Error::from);
 
         // send the request
         let send_request = |mut stream: TcpStream| {
+            info!("Sending request to {:?}", request.addr);
             let mut request_codec = RequestCodec::new();
             let mut buf = BytesMut::new();
             request_codec.encode(request, &mut buf);
@@ -40,7 +33,12 @@ impl Client {
 
         // read the response
         let recv_response = move |mut stream: TcpStream| {
-            let mut response_codec = ResponseCodec::new(item_type.clone());
+            let item_type = item_type.clone();
+            let needs_to_buffer = match item_type {
+                ItemType::Dir => (),
+                _ => unreachable!(),
+            };
+            let mut response_codec = ResponseCodec::new(item_type);
             let framed = stream.framed(response_codec);
             // let mut buf = Vec::new();
             // stream.read_to_end(&mut buf);
@@ -56,6 +54,6 @@ impl Client {
         stream
             .and_then(send_request)
             .and_then(recv_response)
-            .boxed()
+            .map(|response| response.unwrap())
     }
 }

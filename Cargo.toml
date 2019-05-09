@@ -1,5 +1,5 @@
 [package]
-name = "gopher_browser"
+name = "gopher-browser"
 version = "0.1.0"
 authors = ["Michael Zhang <iptq@protonmail.com>"]
 edition = "2018"

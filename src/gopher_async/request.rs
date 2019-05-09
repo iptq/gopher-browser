@@ -6,9 +6,11 @@ use url::Url;
 use super::errors::Error;
 use super::types::ItemType;
 
+#[derive(Debug)]
 pub struct Request {
     pub addr: SocketAddr,
-    pub resource: Option<(ItemType, String)>,
+    pub item_type: ItemType,
+    pub resource: String,
 }
 
 impl Request {
@@ -18,7 +20,7 @@ impl Request {
             .and_then(|host_and_port| host_and_port.to_socket_addrs())
             .map(|mut iter| iter.next().unwrap())?;
 
-        let resource = url
+        let (item_type, resource) = url
             .path_segments()
             .and_then(|mut iter| iter.next().map(|item| (item, iter)))
             .and_then(|(first_arg, iter)| {
@@ -28,9 +30,14 @@ impl Request {
                 let ty = ItemType::decode(first_arg.as_bytes()[0]);
                 let rest = iter.collect::<Vec<_>>().join("/");
                 Some((ty, rest))
-            });
+            })
+            .unwrap_or_else(|| (ItemType::Dir, String::new()));
 
-        Ok(Request { addr, resource })
+        Ok(Request {
+            addr,
+            item_type,
+            resource,
+        })
     }
 }
 
@@ -47,18 +54,11 @@ impl Encoder for RequestCodec {
     type Error = Error;
 
     fn encode(&mut self, item: Self::Item, bytes: &mut BytesMut) -> Result<(), Self::Error> {
-        let (data, item_type) = match item.resource {
-            Some((item_type, path)) => {
-                let path = path.to_string() + "\n";
-                (path, item_type.clone())
-            }
-            None => ("\n".to_string(), ItemType::Dir),
-        };
-
         // TODO: do this
         // Before writing to the buffer, ensure that there is enough remaining capacity by calling my_bytes.remaining_mut().
 
-        bytes.put(data);
+        bytes.put(item.resource);
+        bytes.put("\n");
         Ok(())
     }
 }

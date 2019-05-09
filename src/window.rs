@@ -1,11 +1,15 @@
 use std::sync::Arc;
 
-use futures::sync::{mpsc::UnboundedSender, oneshot::Sender as OneshotSender};
+use futures::sync::{
+    mpsc::{UnboundedReceiver, UnboundedSender},
+    oneshot::Sender as OneshotSender,
+};
 use gtk::prelude::*;
 use gtk::{Application, ApplicationWindow, Notebook, WindowPosition};
 use relm::{Relm, Widget};
 use url::Url;
 
+use crate::events::{Event, Reply};
 use crate::gopher_async::{Error, Request, Response};
 
 // pub fn build_window(app: &Application) {
@@ -27,6 +31,8 @@ use crate::gopher_async::{Error, Request, Response};
 
 pub struct Model {
     stop_tx: Option<OneshotSender<()>>,
+    evl_tx: UnboundedSender<Event>,
+    gui_rx: UnboundedReceiver<Reply>,
     relm: Relm<Window>,
 }
 
@@ -42,10 +48,21 @@ pub enum Msg {
 impl Widget for Window {
     fn model(
         relm: &Relm<Self>,
-        (stop_tx, evl_tx): (OneshotSender<()>, UnboundedSender<()>),
+        (stop_tx, evl_tx, gui_rx): (
+            OneshotSender<()>,
+            UnboundedSender<Event>,
+            UnboundedReceiver<Reply>,
+        ),
     ) -> Model {
+        let stream = relm.stream();
+        stream.emit(Msg::OpenUrl(
+            Url::parse("gopher://sdf.org/1/users/loli").unwrap(),
+        ));
+
         Model {
-            stop_tx : Some(stop_tx),
+            stop_tx: Some(stop_tx),
+            evl_tx,
+            gui_rx,
             relm: relm.clone(),
         }
     }
@@ -53,8 +70,13 @@ impl Widget for Window {
     fn update(&mut self, event: Msg) {
         match event {
             Msg::OpenUrl(url) => {
+                info!("Opening URL {:?}", url);
                 // TODO: don't unwrap
                 let request = Request::from_url(url).unwrap();
+                info!("Request {:?}", request);
+
+                // spawn the event on the event loop
+                self.model.evl_tx.send(Event::MakeRequest(request));
             }
             Msg::OpenedUrl(resp) => {}
             Msg::Fail(err) => error!("error: {:?}", err),
@@ -74,7 +96,8 @@ impl Widget for Window {
             property_default_width: 854,
             property_default_height: 480,
 
-            gtk::Notebook {},
+            gtk::Notebook {
+            },
 
             delete_event(_, _) => (Msg::Quit, Inhibit(false)),
         }
