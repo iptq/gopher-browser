@@ -1,6 +1,9 @@
 #[macro_use]
 extern crate log;
 
+#[macro_use]
+mod utils;
+
 mod browser;
 mod gopher;
 mod window;

@@ -1,8 +1,13 @@
 use std::net::{SocketAddr, TcpStream, ToSocketAddrs};
 
 use gtk::prelude::*;
-use gtk::{Box as GtkBox, IconSize, Image, LinkButton, Orientation, PackType, TextView, Widget};
+use gtk::{
+    Box as GtkBox, ButtonsType, DialogFlags, IconSize, Image, LinkButton, MessageDialog,
+    MessageType, Notebook, Orientation, PackType, TextView, Widget, Window,
+};
 use url::Url;
+
+use crate::browser::BrowserExt;
 
 #[derive(Debug)]
 pub struct Request(pub SocketAddr, pub Option<(ItemType, String)>);
@@ -19,6 +24,9 @@ impl Request {
             .path_segments()
             .and_then(|mut iter| iter.next().map(|item| (item, iter)))
             .and_then(|(first_arg, iter)| {
+                if first_arg.len() == 0 {
+                    return None;
+                }
                 let ty = ItemType::decode(first_arg.as_bytes()[0]);
                 let rest = iter.collect::<Vec<_>>().join("/");
                 Some((ty, rest))
@@ -36,44 +44,56 @@ pub enum Response {
 }
 
 impl Response {
-    pub fn into_widget(self) -> impl IsA<Widget> + Sized {
-        match self {
-            Response::Menu(entries) => {
-                let container = GtkBox::new(Orientation::Vertical, 0);
+    fn menu_into_widget(
+        &self,
+        notebook: &Notebook,
+        entries: &Vec<MenuEntry>,
+    ) -> impl IsA<Widget> + Sized {
+        let container = GtkBox::new(Orientation::Vertical, 0);
 
-                for entry in entries {
-                    match entry {
-                        MenuEntry::Information(text) => {
-                            let text_view = TextView::new();
-                            text_view.set_editable(false);
-                            text_view.set_property_monospace(true);
-                            text_view.get_buffer().map(|buffer| buffer.set_text(&text));
-                            container.add(&text_view);
-                        }
-                        MenuEntry::Link(ty, label, target) => {
-                            let row = GtkBox::new(Orientation::Horizontal, 15);
-                            let icon = Image::new_from_icon_name("folder", IconSize::Button);
-                            row.add(&icon);
-                            row.set_child_packing(&icon, false, false, 20, PackType::Start);
-                            let link_button =
-                                LinkButton::new_with_label(&target, Some(label.as_ref()));
-                            row.add(&link_button);
-                            container.add(&row);
-                        }
-                        SomethingElse => {
-                            let row = GtkBox::new(Orientation::Horizontal, 15);
-                            let icon = Image::new_from_icon_name("folder", IconSize::Button);
-                            row.add(&icon);
-                            row.set_child_packing(&icon, false, false, 20, PackType::Start);
-                            let link_button = LinkButton::new_with_label("", Some("hello"));
-                            row.add(&link_button);
-                            container.add(&row);
-                        }
-                    }
+        for entry in entries {
+            match entry {
+                MenuEntry::Information(text) => {
+                    let text_view = TextView::new();
+                    text_view.set_editable(false);
+                    text_view.set_cursor_visible(false);
+                    text_view.set_property_monospace(true);
+                    text_view.get_buffer().map(|buffer| buffer.set_text(&text));
+                    container.add(&text_view);
                 }
-
-                container
+                MenuEntry::Link(ty, label, target) => {
+                    let row = GtkBox::new(Orientation::Horizontal, 15);
+                    let icon = Image::new_from_icon_name("folder", IconSize::Button);
+                    row.add(&icon);
+                    row.set_child_packing(&icon, false, false, 20, PackType::Start);
+                    let link_button = LinkButton::new_with_label(&target, Some(label.as_ref()));
+                    let notebook_weak = notebook.downgrade();
+                    link_button.connect_activate_link(move |_| {
+                        let notebook = upgrade_weak!(notebook_weak, Inhibit(false));
+                        MessageDialog::new(
+                            Option::<&Window>::None,
+                            DialogFlags::empty(),
+                            MessageType::Info,
+                            ButtonsType::Ok,
+                            "hello :>",
+                        ).run();
+                        notebook
+                            .new_tab_with_url(Url::parse("gopher://sdf.org/1/users/loli").unwrap());
+                        Inhibit(false)
+                    });
+                    row.add(&link_button);
+                    container.add(&row);
+                }
+                SomethingElse => {}
             }
+        }
+
+        container
+    }
+
+    pub fn into_widget(&self, notebook: &Notebook) -> impl IsA<Widget> + Sized {
+        match self {
+            Response::Menu(entries) => self.menu_into_widget(notebook, entries),
             _ => unimplemented!("unsupported widget {:?}", self),
         }
     }
@@ -158,6 +178,7 @@ pub fn make_request(url: Url) -> Result<Response, ()> {
                         _ => unimplemented!("unimplemented type {:?}", line_ty),
                     }
                 }
+                entries.push(MenuEntry::Information(current.join("\n")));
 
                 Ok(Response::Menu(entries))
             }

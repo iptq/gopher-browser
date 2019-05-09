@@ -7,17 +7,13 @@ use url::Url;
 
 use crate::gopher::{self, Response};
 
-pub struct Browser {
-    pub notebook: Notebook,
+pub trait BrowserExt {
+    fn new_tab_with_content(&self, content: impl IsA<Widget>);
+    fn new_empty_tab(&self);
+    fn new_tab_with_url(&self, url: Url);
 }
 
-impl Browser {
-    pub fn new() -> Self {
-        let notebook = Notebook::new();
-
-        Browser { notebook: notebook }
-    }
-
+impl BrowserExt for Notebook {
     fn new_tab_with_content(&self, content: impl IsA<Widget>) {
         let child = GtkBox::new(Orientation::Vertical, 0);
 
@@ -31,21 +27,23 @@ impl Browser {
         child.set_child_packing(&content_scroll, true, true, 0, PackType::End);
 
         let label = Label::new("new tab");
-        self.notebook.append_page(&child, Some(&label));
-        self.notebook.set_tab_reorderable(&child, true);
+        self.append_page(&child, Some(&label));
+        self.set_tab_reorderable(&child, true);
     }
 
-    pub fn new_empty_tab(&self) {
+    fn new_empty_tab(&self) {
         let empty = GtkBox::new(Orientation::Vertical, 0);
         self.new_tab_with_content(empty);
     }
 
-    pub fn new_tab_with_url(&self, url: Url) {
+    fn new_tab_with_url(&self, url: Url) {
         use std::net::{SocketAddr, TcpStream, ToSocketAddrs};
+        info!("loading url: {:?}", url);
 
         gopher::make_request(url)
-            .map(Response::into_widget)
+            .map(|response| response.into_widget(&self))
             .map(|widget| {
+                info!("done!");
                 self.new_tab_with_content(widget);
             });
     }
