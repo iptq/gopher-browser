@@ -1,0 +1,16 @@
+[package]
+name = "gopher_browser"
+version = "0.1.0"
+authors = ["Michael Zhang <iptq@protonmail.com>"]
+edition = "2018"
+
+[dependencies]
+bytes = "0.4"
+env_logger = "0.6"
+futures = "0.1"
+gio = "0.6"
+glib = "0.7"
+gtk = "0.6"
+log = "0.4"
+# tokio = { version = "0.1", default-features = false, features = ["codec", "tcp"] }
+url = "1.7"
