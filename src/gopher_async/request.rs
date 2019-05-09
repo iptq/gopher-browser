@@ -1,4 +1,4 @@
-use bytes::BytesMut;
+use bytes::{BufMut, BytesMut};
 use std::net::{SocketAddr, ToSocketAddrs};
 use tokio::codec::{Decoder, Encoder, LinesCodec};
 use url::Url;
@@ -34,12 +34,11 @@ impl Request {
     }
 }
 
-pub struct RequestCodec(Vec<String>, LinesCodec);
+pub struct RequestCodec;
 
 impl RequestCodec {
-    pub fn new(ty: ItemType) -> Self {
-        let inner = LinesCodec::new();
-        RequestCodec(Vec::new(), inner)
+    pub fn new() -> Self {
+        RequestCodec
     }
 }
 
@@ -48,6 +47,18 @@ impl Encoder for RequestCodec {
     type Error = Error;
 
     fn encode(&mut self, item: Self::Item, bytes: &mut BytesMut) -> Result<(), Self::Error> {
+        let (data, item_type) = match item.resource {
+            Some((item_type, path)) => {
+                let path = path.to_string() + "\n";
+                (path, item_type.clone())
+            }
+            None => ("\n".to_string(), ItemType::Dir),
+        };
+
+        // TODO: do this
+        // Before writing to the buffer, ensure that there is enough remaining capacity by calling my_bytes.remaining_mut().
+
+        bytes.put(data);
         Ok(())
     }
 }

@@ -6,7 +6,6 @@ use gtk::{
 use relm::{Relm, Widget};
 use url::Url;
 
-use crate::gopher;
 use crate::gopher_async::{Client, Error, Request, Response};
 
 pub trait BrowserExt {
@@ -48,45 +47,5 @@ impl BrowserExt for Notebook {
                 info!("done!");
                 self.new_tab_with_content(widget);
             });
-    }
-}
-
-pub struct Model {
-    relm: Relm<Tabs>,
-}
-
-#[derive(Msg)]
-pub enum Msg {
-    OpenUrl(Url),
-    OpenedUrl(Response),
-    Fail(Error),
-}
-
-#[widget]
-impl Widget for Tabs {
-    fn model(relm: &Relm<Self>, _: ()) -> Model {
-        Model { relm: relm.clone() }
-    }
-
-    fn update(&mut self, event: Msg) {
-        match event {
-            Msg::OpenUrl(url) => {
-                // TODO: don't unwrap
-                let request = Request::from_url(url).unwrap();
-                connect_async_full!(
-                    Client,
-                    request_async(request),
-                    self.model.relm,
-                    Msg::OpenedUrl,
-                    |err| Msg::Fail(err)
-                );
-            }
-            Msg::OpenedUrl(resp) => {}
-            Msg::Fail(err) => error!("error: {:?}", err),
-        }
-    }
-
-    view! {
-        gtk::Notebook {}
     }
 }

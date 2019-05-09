@@ -2,17 +2,17 @@ use bytes::BytesMut;
 use tokio::codec::{Decoder, Encoder, LinesCodec};
 
 use super::errors::Error;
+use super::types::ItemType;
 
 pub enum Response {
-    Hello,
+    MenuItem(),
 }
 
-pub struct ResponseCodec(LinesCodec);
+pub struct ResponseCodec(ItemType);
 
 impl ResponseCodec {
-    pub fn new() -> Self {
-        let inner = LinesCodec::new();
-        ResponseCodec(inner)
+    pub fn new(item_type: ItemType) -> Self {
+        ResponseCodec(item_type)
     }
 }
 

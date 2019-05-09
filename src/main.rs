@@ -10,16 +10,20 @@ extern crate relm_derive;
 #[macro_use]
 mod utils;
 
-mod gopher;
+// mod gopher;
 mod gopher_async;
 mod page;
-mod tabs;
+// mod tabs;
 mod window;
 
 use std::env;
+use std::sync::Arc;
+use std::thread;
 
+use futures::sync::{mpsc, oneshot};
 use gio::prelude::*;
 use relm::Widget;
+use tokio::runtime::Runtime;
 
 use crate::window::Window;
 
@@ -34,5 +38,17 @@ fn main() {
 
     // application.run(&env::args().collect::<Vec<_>>());
 
-    Window::run(());
+    let mut runtime = Runtime::new().expect("failed to create runtime");
+    let (stop_tx, stop_rx) = oneshot::channel::<()>();
+
+    let (evl_tx, evl_rx) = mpsc::unbounded::<()>();
+
+    // let (to_thread, from_thread) = mpsc::channel();
+    // let (to_gui, from_gui) = mpsc::channel();
+
+    thread::spawn(move || {
+        Window::run((evl_tx,));
+    });
+
+    runtime.block_on(stop_rx);
 }

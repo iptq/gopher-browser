@@ -62,10 +62,14 @@ impl Response {
                     container.add(&text_view);
                 }
                 MenuEntry::Link(ty, label, target) => {
+                    // TODO: don't unwrap
+                    let target_url = Url::parse(target).unwrap();
+
                     let row = GtkBox::new(Orientation::Horizontal, 15);
                     let icon = Image::new_from_icon_name("folder", IconSize::Button);
                     row.add(&icon);
                     row.set_child_packing(&icon, false, false, 20, PackType::Start);
+
                     let link_button = LinkButton::new_with_label(&target, Some(label.as_ref()));
                     let notebook_weak = notebook.downgrade();
                     link_button.connect_activate_link(move |_| {
@@ -78,8 +82,8 @@ impl Response {
                             "hello :>",
                         )
                         .run();
-                        notebook
-                            .new_tab_with_url(Url::parse("gopher://sdf.org/1/users/loli").unwrap());
+                        // TODO: don't unwrap
+                        notebook.new_tab_with_url(target_url.clone());
                         Inhibit(false)
                     });
                     row.add(&link_button);
