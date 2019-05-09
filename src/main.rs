@@ -10,15 +10,16 @@ extern crate relm_derive;
 #[macro_use]
 mod utils;
 
-mod tabs;
-mod gopher_async;
 mod gopher;
+mod gopher_async;
+mod page;
+mod tabs;
 mod window;
 
 use std::env;
 
-use relm::Widget;
 use gio::prelude::*;
+use relm::Widget;
 
 use crate::window::Window;
 

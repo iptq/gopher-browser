@@ -1,12 +1,13 @@
-use relm::Widget;
 use gtk::prelude::*;
 use gtk::{
-    Box as GtkBox, Label, Notebook, Orientation, PackType, ScrolledWindow, SearchEntry, Widget as GtkWidget,
-    NONE_ADJUSTMENT,
+    Box as GtkBox, Label, Notebook, Orientation, PackType, ScrolledWindow, SearchEntry,
+    Widget as GtkWidget, NONE_ADJUSTMENT,
 };
+use relm::{Relm, Widget};
 use url::Url;
 
-use crate::gopher::{self, Response};
+use crate::gopher;
+use crate::gopher_async::{Client, Error, Request, Response};
 
 pub trait BrowserExt {
     fn new_tab_with_content(&self, content: impl IsA<GtkWidget>);
@@ -51,24 +52,37 @@ impl BrowserExt for Notebook {
 }
 
 pub struct Model {
-
+    relm: Relm<Tabs>,
 }
 
 #[derive(Msg)]
 pub enum Msg {
     OpenUrl(Url),
+    OpenedUrl(Response),
+    Fail(Error),
 }
 
 #[widget]
 impl Widget for Tabs {
-    fn model() -> Model {
-        Model {}
+    fn model(relm: &Relm<Self>, _: ()) -> Model {
+        Model { relm: relm.clone() }
     }
 
     fn update(&mut self, event: Msg) {
         match event {
             Msg::OpenUrl(url) => {
-            },
+                // TODO: don't unwrap
+                let request = Request::from_url(url).unwrap();
+                connect_async_full!(
+                    Client,
+                    request_async(request),
+                    self.model.relm,
+                    Msg::OpenedUrl,
+                    |err| Msg::Fail(err)
+                );
+            }
+            Msg::OpenedUrl(resp) => {}
+            Msg::Fail(err) => error!("error: {:?}", err),
         }
     }
 

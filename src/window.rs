@@ -1,10 +1,10 @@
-use relm::{Widget, Relm};
 use gtk::prelude::*;
 use gtk::{Application, ApplicationWindow, Notebook, WindowPosition};
+use relm::{Relm, Widget};
 use url::Url;
 
-use crate::tabs::Tabs;
 use crate::tabs::BrowserExt;
+use crate::tabs::Tabs;
 
 pub fn build_window(app: &Application) {
     let window = ApplicationWindow::new(app);
@@ -14,7 +14,10 @@ pub fn build_window(app: &Application) {
 
     let browser = Notebook::new();
     browser.new_tab_with_url(Url::parse("gopher://iptq.io").unwrap());
-    browser.new_tab_with_url(Url::parse("gopher://sdf.org/1/users/loli").unwrap());
+    browser.new_tab_with_url(
+        Url::parse("gopher://sdf.org/0/users/loli/articles/modern_software_is_at_its_worst.txt")
+            .unwrap(),
+    );
     window.add(&browser);
 
     window.show_all();

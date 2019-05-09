@@ -76,7 +76,8 @@ impl Response {
                             MessageType::Info,
                             ButtonsType::Ok,
                             "hello :>",
-                        ).run();
+                        )
+                        .run();
                         notebook
                             .new_tab_with_url(Url::parse("gopher://sdf.org/1/users/loli").unwrap());
                         Inhibit(false)
