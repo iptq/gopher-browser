@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use futures::sync::mpsc::UnboundedSender;
+use futures::sync::{mpsc::UnboundedSender, oneshot::Sender as OneshotSender};
 use gtk::prelude::*;
 use gtk::{Application, ApplicationWindow, Notebook, WindowPosition};
 use relm::{Relm, Widget};
@@ -26,6 +26,7 @@ use crate::gopher_async::{Error, Request, Response};
 // }
 
 pub struct Model {
+    stop_tx: Option<OneshotSender<()>>,
     relm: Relm<Window>,
 }
 
@@ -39,8 +40,14 @@ pub enum Msg {
 
 #[widget]
 impl Widget for Window {
-    fn model(relm: &Relm<Self>, (evl_tx,): (UnboundedSender<()>,)) -> Model {
-        Model { relm: relm.clone() }
+    fn model(
+        relm: &Relm<Self>,
+        (stop_tx, evl_tx): (OneshotSender<()>, UnboundedSender<()>),
+    ) -> Model {
+        Model {
+            stop_tx : Some(stop_tx),
+            relm: relm.clone(),
+        }
     }
 
     fn update(&mut self, event: Msg) {
@@ -51,7 +58,13 @@ impl Widget for Window {
             }
             Msg::OpenedUrl(resp) => {}
             Msg::Fail(err) => error!("error: {:?}", err),
-            Msg::Quit => gtk::main_quit(),
+            Msg::Quit => {
+                // hack to take stop_tx
+                let stop_tx = self.model.stop_tx.take();
+                stop_tx.unwrap().send(());
+
+                gtk::main_quit();
+            }
         }
     }
 

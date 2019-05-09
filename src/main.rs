@@ -47,7 +47,7 @@ fn main() {
     // let (to_gui, from_gui) = mpsc::channel();
 
     thread::spawn(move || {
-        Window::run((evl_tx,));
+        Window::run((stop_tx, evl_tx));
     });
 
     runtime.block_on(stop_rx);

@@ -5,7 +5,14 @@ use super::errors::Error;
 use super::types::ItemType;
 
 pub enum Response {
-    MenuItem(),
+    Menu(Vec<MenuEntry>),
+    TextFile,
+    BinaryFile,
+}
+
+pub enum MenuEntry {
+    Information(String),
+    Link(ItemType, String, String),
 }
 
 pub struct ResponseCodec(ItemType);
