@@ -60,7 +60,7 @@ impl Encoder for RequestCodec {
         // TODO: do this
         // Before writing to the buffer, ensure that there is enough remaining capacity by calling my_bytes.remaining_mut().
         let remaining = bytes.remaining_mut();
-        let len = item.resource.len();
+        let len = item.resource.len() + 1;
         if remaining < len {
             bytes.reserve(len);
         }
