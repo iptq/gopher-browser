@@ -81,6 +81,7 @@ impl Update for Window {
                 let content = response.into_page(&self.notebook, stream);
 
                 let search_bar = SearchEntry::new();
+                search_bar.set_text(&response.url.to_string());
                 let search_bar_weak = search_bar.downgrade();
                 let stream = self.model.relm.stream().clone();
                 search_bar.connect_activate(move |_| {

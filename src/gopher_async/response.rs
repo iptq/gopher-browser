@@ -14,7 +14,14 @@ use crate::window::Msg as WindowMsg;
 use super::types::ItemType;
 
 #[derive(Debug)]
-pub enum Response {
+pub struct Response {
+    pub url: Url,
+    pub item_type: ItemType,
+    pub kind: ResponseKind,
+}
+
+#[derive(Debug)]
+pub enum ResponseKind {
     Menu(Vec<MenuEntry>),
     TextFile(String),
     _BinaryFile,
@@ -27,11 +34,11 @@ pub enum MenuEntry {
 }
 
 impl Response {
-    pub fn from_buf(url: Url, ty: ItemType, buf: Vec<u8>) -> Result<Self, Error> {
-        match ty {
+    pub fn from_buf(url: Url, item_type: ItemType, buf: Vec<u8>) -> Result<Self, Error> {
+        let kind = match item_type {
             ItemType::File => {
                 let string = String::from_utf8(buf).map_err(Error::from)?;
-                Ok(Response::TextFile(string))
+                ResponseKind::TextFile(string)
             }
             ItemType::Dir => {
                 let string = String::from_utf8(buf).map_err(Error::from)?;
@@ -84,10 +91,11 @@ impl Response {
                 }
 
                 entries.push(MenuEntry::Information(current.join("\n")));
-                Ok(Response::Menu(entries))
+                ResponseKind::Menu(entries)
             }
-            _ => unimplemented!("unsupported type {:?}", ty),
-        }
+            _ => unimplemented!("unsupported type {:?}", item_type),
+        };
+        Ok(Response { url, item_type, kind })
     }
 
     pub fn into_page(
@@ -95,9 +103,9 @@ impl Response {
         notebook: &Notebook,
         stream: EventStream<WindowMsg>,
     ) -> GtkBox {
-        match self {
-            Response::Menu(entries) => self.menu_into_page(notebook, entries, stream),
-            Response::TextFile(contents) => self.text_into_page(contents),
+        match &self.kind {
+            ResponseKind::Menu(entries) => self.menu_into_page(notebook, &entries, stream),
+            ResponseKind::TextFile(contents) => self.text_into_page(contents),
             _ => unimplemented!("not supported yet"),
         }
     }
