@@ -44,7 +44,7 @@ impl Update for Window {
     fn model(relm: &Relm<Self>, (stop_tx, evl_tx): Self::ModelParam) -> Model {
         let stream = relm.stream().clone();
         stream.emit(Msg::OpenUrl(
-            Url::parse("gopher://sdf.org/1/users/loli").unwrap(),
+            Url::parse("gopher://iptq.io").unwrap(),
         ));
 
         let (channel, sender) = Channel::new(move |reply| {
@@ -83,6 +83,21 @@ impl Update for Window {
                 let content = response.into_page(&self.notebook, stream);
 
                 let search_bar = SearchEntry::new();
+                let search_bar_weak = search_bar.downgrade();
+                let stream = self.model.relm.stream().clone();
+                search_bar.connect_activate(move |_| {
+                    let search_bar = upgrade_weak!(search_bar_weak);
+                    println!("content: {:?}", search_bar.get_text());
+                    let url = match search_bar
+                        .get_text()
+                        .map(|gstr| gstr.as_str().to_owned())
+                        .and_then(|s| Url::parse(s.as_ref()).ok())
+                    {
+                        Some(url) => url,
+                        None => return,
+                    };
+                    stream.emit(Msg::OpenUrl(url));
+                });
                 child.add(&search_bar);
                 child.set_child_packing(&search_bar, false, true, 0, PackType::Start);
 

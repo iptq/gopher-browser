@@ -109,10 +109,13 @@ impl Response {
                     };
 
                     let row = GtkBox::new(Orientation::Horizontal, 15);
-                    let icon = Image::new_from_icon_name(match ty {
-                        ItemType::Dir => "folder",
-                        _ => "text-x-generic",
-                    }, IconSize::Button);
+                    let icon = Image::new_from_icon_name(
+                        match ty {
+                            ItemType::Dir => "folder",
+                            _ => "text-x-generic",
+                        },
+                        IconSize::Button,
+                    );
                     row.add(&icon);
                     row.set_child_packing(&icon, false, false, 20, PackType::Start);
 
