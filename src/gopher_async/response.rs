@@ -16,7 +16,7 @@ use super::types::ItemType;
 #[derive(Debug)]
 pub enum Response {
     Menu(Vec<MenuEntry>),
-    _TextFile,
+    TextFile(String),
     _BinaryFile,
 }
 
@@ -27,57 +27,94 @@ pub enum MenuEntry {
 }
 
 impl Response {
-    pub fn from_buf(url: Url, buf: Vec<u8>) -> Result<Self, Error> {
-        let string = String::from_utf8(buf).map_err(Error::from)?;
-        let lines = string.lines();
-        let mut entries = Vec::new();
-        let mut current = Vec::new();
-
-        for line in lines {
-            let line_ty = ItemType::decode(line.as_bytes()[0]);
-            let rest = &line[1..];
-
-            let parts = rest.split("\t").collect::<Vec<_>>();
-
-            // join the information strings together
-            if let ItemType::Other(_) = line_ty {
-                current.push(parts[0]);
-                continue;
-            } else if !current.is_empty() {
-                entries.push(MenuEntry::Information(current.join("\n")));
-                current.clear();
+    pub fn from_buf(url: Url, ty: ItemType, buf: Vec<u8>) -> Result<Self, Error> {
+        match ty {
+            ItemType::File => {
+                let string = String::from_utf8(buf).map_err(Error::from)?;
+                Ok(Response::TextFile(string))
             }
+            ItemType::Dir => {
+                let string = String::from_utf8(buf).map_err(Error::from)?;
+                let lines = string.lines();
+                let mut entries = Vec::new();
+                let mut current = Vec::new();
 
-            // TODO
-            match line_ty {
-                File => {
-                    let mut url = url.clone();
-                    let path = parts[1].trim_start_matches("/");
-                    url.set_path(&format!("{}/{}", ItemType::encode(line_ty) as char, path));
+                for line in lines {
+                    if line.len() == 0 {
+                        continue;
+                    }
 
-                    entries.push(MenuEntry::Link(
-                        line_ty,
-                        parts[0].to_owned(),
-                        url.to_string(),
-                    ))
+                    let line_ty = ItemType::decode(line.as_bytes()[0]);
+                    let rest = &line[1..];
+
+                    let parts = rest.split("\t").collect::<Vec<_>>();
+                    if parts.len() < 4 {
+                        error!("Bad line from server: {:?}", line);
+                        continue;
+                    }
+
+                    // join the information strings together
+                    if let ItemType::Other(_) = line_ty {
+                        current.push(parts[0]);
+                        continue;
+                    } else if !current.is_empty() {
+                        entries.push(MenuEntry::Information(current.join("\n")));
+                        current.clear();
+                    }
+
+                    // TODO
+                    match line_ty {
+                        File => {
+                            let mut url = url.clone();
+                            let path = parts[1].trim_start_matches("/");
+                            url.set_path(&format!(
+                                "{}/{}",
+                                ItemType::encode(line_ty) as char,
+                                path
+                            ));
+
+                            entries.push(MenuEntry::Link(
+                                line_ty,
+                                parts[0].to_owned(),
+                                url.to_string(),
+                            ))
+                        }
+                        _ => unimplemented!("unimplemented type {:?}", line_ty),
+                    }
                 }
-                _ => unimplemented!("unimplemented type {:?}", line_ty),
-            }
-        }
 
-        entries.push(MenuEntry::Information(current.join("\n")));
-        Ok(Response::Menu(entries))
+                entries.push(MenuEntry::Information(current.join("\n")));
+                Ok(Response::Menu(entries))
+            }
+            _ => unimplemented!("unsupported type {:?}", ty),
+        }
     }
 
     pub fn into_page(
         &self,
         notebook: &Notebook,
         stream: EventStream<WindowMsg>,
-    ) -> impl IsA<Widget> + Sized {
+    ) -> GtkBox {
         match self {
             Response::Menu(entries) => self.menu_into_page(notebook, entries, stream),
+            Response::TextFile(contents) => self.text_into_page(contents),
             _ => unimplemented!("not supported yet"),
         }
+    }
+
+    fn text_into_page(&self, contents: impl AsRef<str>) -> GtkBox {
+        let container = GtkBox::new(Orientation::Vertical, 0);
+
+        let text_view = TextView::new();
+        text_view.set_editable(false);
+        text_view.set_cursor_visible(false);
+        text_view.set_property_monospace(true);
+        text_view
+            .get_buffer()
+            .map(|buffer| buffer.set_text(contents.as_ref()));
+
+        container.add(&text_view);
+        container
     }
 
     fn menu_into_page(
@@ -85,9 +122,8 @@ impl Response {
         notebook: &Notebook,
         entries: &Vec<MenuEntry>,
         stream: EventStream<WindowMsg>,
-    ) -> impl IsA<Widget> + Sized {
+    ) -> GtkBox {
         let container = GtkBox::new(Orientation::Vertical, 0);
-
         for entry in entries {
             match entry {
                 MenuEntry::Information(text) => {
@@ -132,7 +168,6 @@ impl Response {
                 }
             }
         }
-
         container
     }
 }

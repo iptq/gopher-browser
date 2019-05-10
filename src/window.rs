@@ -43,9 +43,7 @@ impl Update for Window {
 
     fn model(relm: &Relm<Self>, (stop_tx, evl_tx): Self::ModelParam) -> Model {
         let stream = relm.stream().clone();
-        stream.emit(Msg::OpenUrl(
-            Url::parse("gopher://iptq.io").unwrap(),
-        ));
+        stream.emit(Msg::OpenUrl(Url::parse("gopher://iptq.io").unwrap()));
 
         let (channel, sender) = Channel::new(move |reply| {
             match reply {

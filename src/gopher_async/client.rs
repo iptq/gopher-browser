@@ -40,7 +40,7 @@ impl Client {
                         read_to_end(stream, Vec::new())
                             .map(|(_, buf)| buf)
                             .map_err(Error::from)
-                            .and_then(|buf| Response::from_buf(url2, buf)),
+                            .and_then(move |buf| Response::from_buf(url2, item_type, buf)),
                     )
                 }
                 _ => {
