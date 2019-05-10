@@ -17,6 +17,7 @@ impl Client {
         use tokio::net::TcpStream;
 
         let item_type = request.item_type;
+        let url = request.url.clone();
         let mut stream = TcpStream::connect(&request.addr).map_err(Error::from);
 
         // send the request
@@ -29,6 +30,7 @@ impl Client {
         };
 
         // read the response
+        let url2 = url.clone();
         let recv_response = move |stream: TcpStream| {
             let item_type = item_type.clone();
             match item_type {
@@ -38,7 +40,7 @@ impl Client {
                         read_to_end(stream, Vec::new())
                             .map(|(_, buf)| buf)
                             .map_err(Error::from)
-                            .and_then(Response::from_buf),
+                            .and_then(|buf| Response::from_buf(url2, buf)),
                     )
                 }
                 _ => {

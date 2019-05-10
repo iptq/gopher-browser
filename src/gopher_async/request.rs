@@ -9,6 +9,7 @@ use super::types::ItemType;
 
 #[derive(Debug)]
 pub struct Request {
+    pub url: Url,
     pub addr: SocketAddr,
     pub item_type: ItemType,
     pub resource: String,
@@ -35,6 +36,7 @@ impl Request {
             .unwrap_or_else(|| (ItemType::Dir, String::new()));
 
         Ok(Request {
+            url,
             addr,
             item_type,
             resource,

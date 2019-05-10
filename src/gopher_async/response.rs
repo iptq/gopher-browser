@@ -4,10 +4,12 @@ use gtk::{
     Box as GtkBox, IconSize, Image, IsA, LinkButton, Notebook, Orientation, PackType, TextView,
     Widget,
 };
+use relm::EventStream;
 use tokio::codec::{Decoder, Encoder, LinesCodec};
 use url::Url;
 
 use crate::errors::Error;
+use crate::window::Msg as WindowMsg;
 
 use super::types::ItemType;
 
@@ -25,7 +27,7 @@ pub enum MenuEntry {
 }
 
 impl Response {
-    pub fn from_buf(buf: Vec<u8>) -> Result<Self, Error> {
+    pub fn from_buf(url: Url, buf: Vec<u8>) -> Result<Self, Error> {
         let string = String::from_utf8(buf).map_err(Error::from)?;
         let lines = string.lines();
         let mut entries = Vec::new();
@@ -48,11 +50,17 @@ impl Response {
 
             // TODO
             match line_ty {
-                File => entries.push(MenuEntry::Link(
-                    line_ty,
-                    parts[0].to_owned(),
-                    parts[1].to_owned(),
-                )),
+                File => {
+                    let mut url = url.clone();
+                    let path = parts[1].trim_start_matches("/");
+                    url.set_path(&format!("{}/{}", ItemType::encode(line_ty) as char, path));
+
+                    entries.push(MenuEntry::Link(
+                        line_ty,
+                        parts[0].to_owned(),
+                        url.to_string(),
+                    ))
+                }
                 _ => unimplemented!("unimplemented type {:?}", line_ty),
             }
         }
@@ -61,9 +69,13 @@ impl Response {
         Ok(Response::Menu(entries))
     }
 
-    pub fn into_page(&self, notebook: &Notebook) -> impl IsA<Widget> + Sized {
+    pub fn into_page(
+        &self,
+        notebook: &Notebook,
+        stream: EventStream<WindowMsg>,
+    ) -> impl IsA<Widget> + Sized {
         match self {
-            Response::Menu(entries) => self.menu_into_page(notebook, entries),
+            Response::Menu(entries) => self.menu_into_page(notebook, entries, stream),
             _ => unimplemented!("not supported yet"),
         }
     }
@@ -72,6 +84,7 @@ impl Response {
         &self,
         notebook: &Notebook,
         entries: &Vec<MenuEntry>,
+        stream: EventStream<WindowMsg>,
     ) -> impl IsA<Widget> + Sized {
         let container = GtkBox::new(Orientation::Vertical, 0);
 
@@ -89,7 +102,10 @@ impl Response {
                     // TODO: don't unwrap
                     let target_url = match Url::parse(target) {
                         Ok(url) => url,
-                        Err(_) => continue,
+                        Err(err) => {
+                            error!("Error parsing URL {}: {}", target, err);
+                            continue;
+                        }
                     };
 
                     let row = GtkBox::new(Orientation::Horizontal, 15);
@@ -99,10 +115,10 @@ impl Response {
 
                     let link_button = LinkButton::new_with_label(&target, Some(label.as_ref()));
                     let notebook_weak = notebook.downgrade();
+                    let stream = stream.clone();
                     link_button.connect_activate_link(move |_| {
                         let notebook = upgrade_weak!(notebook_weak, Inhibit(false));
-                        // TODO: don't unwrap
-                        // notebook.new_tab_with_url(target_url.clone());
+                        stream.emit(WindowMsg::OpenUrl(target_url.clone()));
                         Inhibit(false)
                     });
                     row.add(&link_button);

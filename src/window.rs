@@ -79,7 +79,8 @@ impl Update for Window {
             }
             Msg::OpenedUrl(response) => {
                 let child = GtkBox::new(Orientation::Vertical, 0);
-                let content = response.into_page(&self.notebook);
+                let stream = self.model.relm.stream().clone();
+                let content = response.into_page(&self.notebook, stream);
 
                 let search_bar = SearchEntry::new();
                 child.add(&search_bar);
@@ -93,9 +94,8 @@ impl Update for Window {
                 let label = Label::new("new tab");
                 let n = self.notebook.append_page(&child, Some(&label));
                 self.notebook.set_tab_reorderable(&child, true);
+                self.notebook.show_all();
                 self.notebook.set_current_page(n);
-
-                info!("Done.");
             }
             Msg::Fail(err) => error!("error: {:?}", err),
             Msg::Quit => {
