@@ -11,6 +11,7 @@ extern crate relm_derive;
 mod utils;
 
 // mod gopher;
+mod errors;
 mod gopher_async;
 mod page;
 // mod tabs;
@@ -27,19 +28,12 @@ use gio::prelude::*;
 use relm::Widget;
 use tokio::runtime::Runtime;
 
+use crate::errors::Error;
 use crate::events::{Event, Reply};
 use crate::window::Window;
 
 fn main() {
     env_logger::init();
-
-    // let application = gtk::Application::new("io.iptq.gopher-browser", Default::default())
-    //     .expect("Initialization failed...");
-    // application.connect_activate(|app| {
-    //     window::build_window(app);
-    // });
-
-    // application.run(&env::args().collect::<Vec<_>>());
 
     let mut runtime = Runtime::new().expect("failed to create runtime");
     let (stop_tx, stop_rx) = oneshot::channel::<()>();
@@ -47,24 +41,29 @@ fn main() {
     let (evl_tx, evl_rx) = mpsc::unbounded::<Event>();
     let (gui_tx, gui_rx) = mpsc::unbounded::<Reply>();
 
-    // let (to_thread, from_thread) = mpsc::channel();
-    // let (to_gui, from_gui) = mpsc::channel();
+    let gui_tx = Arc::new(gui_tx);
+
+    let evl = evl_rx
+        .map_err(|_| Error::ChannelRecv)
+        .for_each(move |event| match event {
+            Event::MakeRequest(request) => {
+                use crate::gopher_async::Client;
+                let gui_tx = gui_tx.clone();
+                Client::request_async(request).and_then(move |response| {
+                    info!("Response: {:?}", response);
+                    gui_tx.send(Reply::Response(response)).map_err(Error::from)
+                })
+            }
+        })
+        .map_err(|err| {
+            error!("Error: {:?}", err);
+        });
+    runtime.spawn(evl);
 
     thread::spawn(move || {
         Window::run((stop_tx, evl_tx, gui_rx));
     });
 
-    runtime.spawn(
-        evl_rx
-            .map(move |event| match event {
-                Event::MakeRequest(request) => {
-                    use crate::gopher_async::Client;
-                    Client::request_async(request)
-                        .map(|response| gui_tx.send(Reply::Response(response)));
-                }
-            })
-            .collect()
-            .map(|_| ()),
-    );
     runtime.block_on(stop_rx);
+    info!("Exiting.");
 }

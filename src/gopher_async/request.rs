@@ -3,7 +3,8 @@ use std::net::{SocketAddr, ToSocketAddrs};
 use tokio::codec::{Decoder, Encoder, LinesCodec};
 use url::Url;
 
-use super::errors::Error;
+use crate::errors::Error;
+
 use super::types::ItemType;
 
 #[derive(Debug)]

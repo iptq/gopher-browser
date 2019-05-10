@@ -4,30 +4,15 @@ use futures::sync::{
     mpsc::{UnboundedReceiver, UnboundedSender},
     oneshot::Sender as OneshotSender,
 };
+use futures::{Async, Stream};
 use gtk::prelude::*;
 use gtk::{Application, ApplicationWindow, Notebook, WindowPosition};
 use relm::{Relm, Widget};
 use url::Url;
 
+use crate::errors::Error;
 use crate::events::{Event, Reply};
-use crate::gopher_async::{Error, Request, Response};
-
-// pub fn build_window(app: &Application) {
-//     let window = ApplicationWindow::new(app);
-//     window.set_title("gopher browser");
-//     window.set_default_size(854, 480);
-//     window.set_position(WindowPosition::Center);
-
-//     let browser = Notebook::new();
-//     browser.new_tab_with_url(Url::parse("gopher://iptq.io").unwrap());
-//     browser.new_tab_with_url(
-//         Url::parse("gopher://sdf.org/0/users/loli/articles/modern_software_is_at_its_worst.txt")
-//             .unwrap(),
-//     );
-//     window.add(&browser);
-
-//     window.show_all();
-// }
+use crate::gopher_async::{Request, Response};
 
 pub struct Model {
     stop_tx: Option<OneshotSender<()>>,
@@ -95,6 +80,7 @@ impl Widget for Window {
             title: "gopher-browser",
             property_default_width: 854,
             property_default_height: 480,
+            resizable: false,
 
             gtk::Notebook {
             },
