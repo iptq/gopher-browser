@@ -2,6 +2,8 @@ use gtk::prelude::*;
 use gtk::{ScrolledWindow, Widget as GtkWidget, NONE_ADJUSTMENT};
 use relm::{Relm, Update, Widget};
 
+use crate::gopher_async::Response;
+
 pub struct Model {
     inner: GtkWidget,
     relm: Relm<Page>,

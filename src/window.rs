@@ -3,13 +3,23 @@ use std::sync::{Arc, Mutex};
 use futures::sync::{mpsc::UnboundedSender, oneshot::Sender as OneshotSender};
 use futures::{Async, Stream};
 use gtk::prelude::*;
-use gtk::{Application, ApplicationWindow, Notebook, WindowPosition};
-use relm::{Channel, Relm, Sender, Widget};
+use gtk::{
+    Application, ApplicationWindow, Box as GtkBox, Label, Notebook, Orientation, PackType,
+    ScrolledWindow, SearchEntry, WindowPosition, WindowType, NONE_ADJUSTMENT,
+};
+use relm::{Channel, Relm, Sender, Update, Widget};
 use url::Url;
 
 use crate::errors::Error;
 use crate::events::{Event, Reply};
 use crate::gopher_async::{Request, Response};
+use crate::page::Page;
+
+pub struct Window {
+    window: gtk::Window,
+    notebook: gtk::Notebook,
+    model: Model,
+}
 
 pub struct Model {
     stop_tx: Option<OneshotSender<()>>,
@@ -27,12 +37,12 @@ pub enum Msg {
     Quit,
 }
 
-#[widget]
-impl Widget for Window {
-    fn model(
-        relm: &Relm<Self>,
-        (stop_tx, evl_tx): (OneshotSender<()>, UnboundedSender<Event>),
-    ) -> Model {
+impl Update for Window {
+    type Model = Model;
+    type ModelParam = (OneshotSender<()>, UnboundedSender<Event>);
+    type Msg = Msg;
+
+    fn model(relm: &Relm<Self>, (stop_tx, evl_tx): Self::ModelParam) -> Model {
         let stream = relm.stream().clone();
         stream.emit(Msg::OpenUrl(
             Url::parse("gopher://sdf.org/1/users/loli").unwrap(),
@@ -67,7 +77,26 @@ impl Widget for Window {
                     .evl_tx
                     .send(Event::MakeRequest(request, self.model.sender.clone()));
             }
-            Msg::OpenedUrl(response) => {}
+            Msg::OpenedUrl(response) => {
+                let child = GtkBox::new(Orientation::Vertical, 0);
+                let content = response.into_page(&self.notebook);
+
+                let search_bar = SearchEntry::new();
+                child.add(&search_bar);
+                child.set_child_packing(&search_bar, false, true, 0, PackType::Start);
+
+                let content_scroll = ScrolledWindow::new(NONE_ADJUSTMENT, NONE_ADJUSTMENT);
+                content_scroll.add(&content);
+                child.add(&content_scroll);
+                child.set_child_packing(&content_scroll, true, true, 0, PackType::End);
+
+                let label = Label::new("new tab");
+                let n = self.notebook.append_page(&child, Some(&label));
+                self.notebook.set_tab_reorderable(&child, true);
+                self.notebook.set_current_page(n);
+
+                info!("Done.");
+            }
             Msg::Fail(err) => error!("error: {:?}", err),
             Msg::Quit => {
                 // hack to take stop_tx
@@ -78,18 +107,35 @@ impl Widget for Window {
             }
         }
     }
+}
 
-    view! {
-        gtk::Window {
-            title: "gopher-browser",
-            property_default_width: 854,
-            property_default_height: 480,
-            resizable: false,
+impl Widget for Window {
+    type Root = gtk::Window;
 
-            gtk::Notebook {
-            },
+    fn root(&self) -> Self::Root {
+        self.window.clone()
+    }
+    fn view(relm: &Relm<Self>, model: Self::Model) -> Self {
+        let window = gtk::Window::new(WindowType::Toplevel);
+        window.set_title("gopher-browser");
+        window.set_default_size(854, 480);
 
-            delete_event(_, _) => (Msg::Quit, Inhibit(false)),
+        let notebook = gtk::Notebook::new();
+        notebook.set_show_tabs(true);
+        window.add(&notebook);
+
+        window.show_all();
+        connect!(
+            relm,
+            window,
+            connect_delete_event(_, _),
+            return (Some(Msg::Quit), Inhibit(false))
+        );
+
+        Window {
+            window,
+            notebook,
+            model,
         }
     }
 }
