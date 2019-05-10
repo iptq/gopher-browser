@@ -59,9 +59,13 @@ impl Encoder for RequestCodec {
     fn encode(&mut self, item: Self::Item, bytes: &mut BytesMut) -> Result<(), Self::Error> {
         // TODO: do this
         // Before writing to the buffer, ensure that there is enough remaining capacity by calling my_bytes.remaining_mut().
+        let remaining = bytes.remaining_mut();
+        let len = item.resource.len();
+        if remaining < len {
+            bytes.reserve(len);
+        }
 
-        bytes.put(item.resource);
-        bytes.put("\n");
+        bytes.put(item.resource + "\n");
         Ok(())
     }
 }
