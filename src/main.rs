@@ -25,7 +25,7 @@ use std::thread;
 use futures::sync::{mpsc, oneshot};
 use futures::{Future, Stream};
 use gio::prelude::*;
-use relm::Widget;
+use relm::{Channel, Widget};
 use tokio::runtime::Runtime;
 
 use crate::errors::Error;
@@ -46,12 +46,12 @@ fn main() {
     let evl = evl_rx
         .map_err(|_| Error::ChannelRecv)
         .for_each(move |event| match event {
-            Event::MakeRequest(request) => {
+            Event::MakeRequest(request, sender) => {
                 use crate::gopher_async::Client;
                 let gui_tx = gui_tx.clone();
                 Client::request_async(request).and_then(move |response| {
-                    info!("Response: {:?}", response);
-                    gui_tx.send(Reply::Response(response)).map_err(Error::from)
+                    sender.lock().unwrap().send(Reply::Response(response));
+                    Ok(())
                 })
             }
         })
@@ -61,7 +61,7 @@ fn main() {
     runtime.spawn(evl);
 
     thread::spawn(move || {
-        Window::run((stop_tx, evl_tx, gui_rx));
+        Window::run((stop_tx, evl_tx));
     });
 
     runtime.block_on(stop_rx);

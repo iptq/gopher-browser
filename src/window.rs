@@ -1,13 +1,10 @@
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
-use futures::sync::{
-    mpsc::{UnboundedReceiver, UnboundedSender},
-    oneshot::Sender as OneshotSender,
-};
+use futures::sync::{mpsc::UnboundedSender, oneshot::Sender as OneshotSender};
 use futures::{Async, Stream};
 use gtk::prelude::*;
 use gtk::{Application, ApplicationWindow, Notebook, WindowPosition};
-use relm::{Relm, Widget};
+use relm::{Channel, Relm, Sender, Widget};
 use url::Url;
 
 use crate::errors::Error;
@@ -17,7 +14,8 @@ use crate::gopher_async::{Request, Response};
 pub struct Model {
     stop_tx: Option<OneshotSender<()>>,
     evl_tx: UnboundedSender<Event>,
-    gui_rx: UnboundedReceiver<Reply>,
+    channel: Channel<Reply>,
+    sender: Arc<Mutex<Sender<Reply>>>,
     relm: Relm<Window>,
 }
 
@@ -33,21 +31,25 @@ pub enum Msg {
 impl Widget for Window {
     fn model(
         relm: &Relm<Self>,
-        (stop_tx, evl_tx, gui_rx): (
-            OneshotSender<()>,
-            UnboundedSender<Event>,
-            UnboundedReceiver<Reply>,
-        ),
+        (stop_tx, evl_tx): (OneshotSender<()>, UnboundedSender<Event>),
     ) -> Model {
-        let stream = relm.stream();
+        let stream = relm.stream().clone();
         stream.emit(Msg::OpenUrl(
             Url::parse("gopher://sdf.org/1/users/loli").unwrap(),
         ));
 
+        let (channel, sender) = Channel::new(move |reply| {
+            match reply {
+                Reply::Response(response) => stream.emit(Msg::OpenedUrl(response)),
+            };
+        });
+        let sender = Arc::new(Mutex::new(sender));
+
         Model {
             stop_tx: Some(stop_tx),
             evl_tx,
-            gui_rx,
+            channel,
+            sender,
             relm: relm.clone(),
         }
     }
@@ -61,9 +63,11 @@ impl Widget for Window {
                 info!("Request {:?}", request);
 
                 // spawn the event on the event loop
-                self.model.evl_tx.send(Event::MakeRequest(request));
+                self.model
+                    .evl_tx
+                    .send(Event::MakeRequest(request, self.model.sender.clone()));
             }
-            Msg::OpenedUrl(resp) => {}
+            Msg::OpenedUrl(response) => {}
             Msg::Fail(err) => error!("error: {:?}", err),
             Msg::Quit => {
                 // hack to take stop_tx
