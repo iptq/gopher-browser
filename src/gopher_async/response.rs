@@ -2,7 +2,7 @@ use bytes::BytesMut;
 use gtk::prelude::*;
 use gtk::{
     Box as GtkBox, IconSize, Image, IsA, LinkButton, Notebook, Orientation, PackType, TextView,
-    Widget, Window,
+    Widget,
 };
 use tokio::codec::{Decoder, Encoder, LinesCodec};
 use url::Url;
@@ -14,8 +14,8 @@ use super::types::ItemType;
 #[derive(Debug)]
 pub enum Response {
     Menu(Vec<MenuEntry>),
-    TextFile,
-    BinaryFile,
+    _TextFile,
+    _BinaryFile,
 }
 
 #[derive(Debug)]
@@ -108,7 +108,6 @@ impl Response {
                     row.add(&link_button);
                     container.add(&row);
                 }
-                SomethingElse => {}
             }
         }
 

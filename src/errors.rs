@@ -2,6 +2,7 @@ use std::error::Error as StdError;
 use std::fmt;
 use std::io;
 use std::string::FromUtf8Error;
+use std::sync::mpsc::SendError as StdSendError;
 
 use futures::sync::mpsc::SendError;
 
@@ -10,6 +11,7 @@ use crate::events::Reply;
 #[derive(Debug)]
 pub enum Error {
     ChannelRecv,
+    StdSendReply(StdSendError<Reply>),
     SendReply(SendError<Reply>),
     String(FromUtf8Error),
     IO(io::Error),
@@ -18,6 +20,12 @@ pub enum Error {
 impl From<io::Error> for Error {
     fn from(err: io::Error) -> Self {
         Error::IO(err)
+    }
+}
+
+impl From<StdSendError<Reply>> for Error {
+    fn from(err: StdSendError<Reply>) -> Self {
+        Error::StdSendReply(err)
     }
 }
 

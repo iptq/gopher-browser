@@ -1,13 +1,6 @@
-use std::net::SocketAddr;
-
 use bytes::BytesMut;
-use futures::{
-    future::{self, Either},
-    Future, Stream,
-};
-use gio::{Cancellable, SocketConnection};
-use gtk::prelude::*;
-use tokio::codec::{Decoder, Encoder};
+use futures::{future::Either, Future, Stream};
+use tokio::codec::Encoder;
 use tokio::io::{read_to_end, AsyncRead};
 
 use crate::errors::Error;
@@ -20,7 +13,7 @@ pub struct Client;
 
 impl Client {
     pub fn request_async(request: Request) -> impl Future<Item = Response, Error = Error> {
-        use std::io::{Read, Write};
+        use std::io::Write;
         use tokio::net::TcpStream;
 
         let item_type = request.item_type;
@@ -28,16 +21,15 @@ impl Client {
 
         // send the request
         let send_request = |mut stream: TcpStream| {
-            info!("Sending request to {:?}", request.addr);
             let mut request_codec = RequestCodec::new();
             let mut buf = BytesMut::new();
             request_codec.encode(request, &mut buf);
-            info!("Contents: {:?}", buf);
+            // TODO: this isn't async writing
             stream.write(&buf).map_err(Error::from).map(|_| stream)
         };
 
         // read the response
-        let recv_response = move |mut stream: TcpStream| {
+        let recv_response = move |stream: TcpStream| {
             let item_type = item_type.clone();
             match item_type {
                 ItemType::Dir | ItemType::File => {
@@ -50,7 +42,7 @@ impl Client {
                     )
                 }
                 _ => {
-                    let mut response_codec = ResponseCodec::new(item_type);
+                    let response_codec = ResponseCodec::new(item_type);
                     let framed = stream.framed(response_codec);
                     // response_codec.decode(&mut buf.into()).map_err(Error::from)
 

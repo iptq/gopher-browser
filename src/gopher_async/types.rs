@@ -2,6 +2,7 @@
 ///
 /// For more details, see section 3.8 of https://tools.ietf.org/html/rfc1436
 #[derive(Debug, Eq, PartialEq, Hash, Copy, Clone)]
+#[allow(dead_code)]
 pub enum ItemType {
     /// Item is a file
     File,
@@ -38,6 +39,7 @@ pub enum ItemType {
 }
 
 impl ItemType {
+    #[allow(dead_code)]
     pub fn decode(b: u8) -> Self {
         use ItemType::*;
         match b {
@@ -59,6 +61,7 @@ impl ItemType {
         }
     }
 
+    #[allow(dead_code)]
     pub fn encode(self) -> u8 {
         use ItemType::*;
         match self {

@@ -1,6 +1,6 @@
 use bytes::{BufMut, BytesMut};
 use std::net::{SocketAddr, ToSocketAddrs};
-use tokio::codec::{Decoder, Encoder, LinesCodec};
+use tokio::codec::{Decoder, Encoder};
 use url::Url;
 
 use crate::errors::Error;

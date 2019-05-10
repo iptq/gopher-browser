@@ -3,19 +3,14 @@ extern crate log;
 #[macro_use]
 extern crate relm;
 #[macro_use]
-extern crate relm_attributes;
-#[macro_use]
 extern crate relm_derive;
 
 #[macro_use]
 mod utils;
 
-// mod gopher;
 mod errors;
-mod gopher_async;
-mod page;
-// mod tabs;
 mod events;
+mod gopher_async;
 mod window;
 
 use std::env;
@@ -50,8 +45,11 @@ fn main() {
                 use crate::gopher_async::Client;
                 let gui_tx = gui_tx.clone();
                 Client::request_async(request).and_then(move |response| {
-                    sender.lock().unwrap().send(Reply::Response(response));
-                    Ok(())
+                    sender
+                        .lock()
+                        .unwrap()
+                        .send(Reply::Response(response))
+                        .map_err(Error::from)
                 })
             }
         })
@@ -61,7 +59,7 @@ fn main() {
     runtime.spawn(evl);
 
     thread::spawn(move || {
-        Window::run((stop_tx, evl_tx));
+        Window::run((stop_tx, evl_tx)).expect("error");
     });
 
     runtime.block_on(stop_rx);

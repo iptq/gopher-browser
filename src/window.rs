@@ -1,7 +1,7 @@
 use std::sync::{Arc, Mutex};
 
 use futures::sync::{mpsc::UnboundedSender, oneshot::Sender as OneshotSender};
-use futures::{Async, Stream};
+use futures::Async;
 use gtk::prelude::*;
 use gtk::{
     Application, ApplicationWindow, Box as GtkBox, Label, Notebook, Orientation, PackType,
@@ -13,7 +13,6 @@ use url::Url;
 use crate::errors::Error;
 use crate::events::{Event, Reply};
 use crate::gopher_async::{Request, Response};
-use crate::page::Page;
 
 pub struct Window {
     window: gtk::Window,
@@ -73,9 +72,10 @@ impl Update for Window {
                 info!("Request {:?}", request);
 
                 // spawn the event on the event loop
-                self.model
-                    .evl_tx
-                    .send(Event::MakeRequest(request, self.model.sender.clone()));
+                let msg = Event::MakeRequest(request, self.model.sender.clone());
+                if let Err(err) = self.model.evl_tx.send(msg) {
+                    error!("Error sending request: {}", err);
+                }
             }
             Msg::OpenedUrl(response) => {
                 let child = GtkBox::new(Orientation::Vertical, 0);
@@ -101,7 +101,9 @@ impl Update for Window {
             Msg::Quit => {
                 // hack to take stop_tx
                 let stop_tx = self.model.stop_tx.take();
-                stop_tx.unwrap().send(());
+                if let Err(err) = stop_tx.unwrap().send(()) {
+                    panic!("Error sending stop: {:?}", err);
+                }
 
                 gtk::main_quit();
             }
